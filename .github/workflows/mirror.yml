@@ -1,0 +1,39 @@
+# Recopie ici chaque version publiée d'Echoes : les machines y cherchent leurs mises à jour.
+# Ce dépôt va chercher lui-même les versions (Echoes est public) : aucun jeton à créer.
+name: Recopie des versions d'Echoes
+on:
+  schedule:
+    - cron: "17 * * * *"   # toutes les heures
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recopier la dernière version si elle manque
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: arthurreeb2-tech/Echoes
+        run: |
+          set -eu
+          tag=$(gh release view --repo "$SOURCE" --json tagName -q .tagName)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag est déjà là."; exit 0
+          fi
+          mkdir dist
+          gh release download "$tag" --repo "$SOURCE" --dir dist
+          # Contrôle avant publication : chaque programme doit correspondre à son empreinte.
+          cd dist
+          for f in *.sha256; do sha256sum -c "$f"; done
+          grep -qx "$tag" version.txt
+          cd ..
+          gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" \
+            --title "Echoes ${tag#v}" \
+            --notes "Copie de https://github.com/$SOURCE/releases/tag/$tag"
