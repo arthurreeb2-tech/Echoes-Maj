@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "17 * * * *"   # toutes les heures
   workflow_dispatch:
+  push:                    # et à chaque fusion sur main
+    branches: [main]
 
 permissions:
   contents: write
